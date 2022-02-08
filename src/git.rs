@@ -69,9 +69,13 @@ impl fmt::Display for Status {
     }
 }
 
+pub trait VCS {
+	fn root_dir(&self) -> String;
+	fn branch(&self) -> String;
+	fn stat(&self) -> String;
+}
 
-
-pub struct Git {}
+pub struct Git;
 
 const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
 
@@ -92,14 +96,6 @@ impl Git {
             output.pop();
         }
         return output.len();
-    }
-
-    pub fn root_dir() -> String {
-        return Git::run_command(&["rev-parse", "--show-toplevel"]);
-    }
-
-    pub fn branch() -> String {
-        return Git::run_command(&["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]);
     }
 
     fn ahead_behind() -> AheadBehind {
@@ -133,11 +129,21 @@ impl Git {
     fn stashes() -> usize {
         return Git::count(&["stash", "list"])
     }
+}
 
-    pub fn stat() -> String {
+impl VCS for Git {
+    fn root_dir(&self) -> String {
+        return Git::run_command(&["rev-parse", "--show-toplevel"]);
+    }
+
+    fn branch(&self) -> String {
+        return Git::run_command(&["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]);
+    }
+
+    fn stat(&self) -> String {
         let mut result = ICON.to_owned();
-        let branch = &Git::branch();
-        if !str::ends_with(&Git::root_dir(), branch) {
+        let branch = &self.branch();
+        if !str::ends_with(&self.root_dir(), branch) {
             result += branch;
         }
         let ab = Git::ahead_behind();

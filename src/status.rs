@@ -30,16 +30,16 @@ fn minify_path(path: &str, keep: usize) -> String {
     return result.join("/");
 }
 
-fn apply_vcs(path: &str) -> String {
-    let root = git::Git::root_dir();
+pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
+    let root = vcs.root_dir();
     let common = &path[0..root.len()];
     let remainder = &path[root.len()..];
-    return minify_path(&common, 1) + &git::Git::stat() + &minify_path(&remainder, 1);
+    return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
 }
 
 pub fn statusline() -> String {
     if let Some(path) = env::current_dir().unwrap().to_str() {
-        return apply_vcs(&path);
+        return apply_vcs(&path, &git::Git{});
     }
     return "".to_owned();
 }
