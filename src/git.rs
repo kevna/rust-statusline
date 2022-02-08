@@ -86,7 +86,7 @@ impl Git {
             .args(args)
             .output()
             .expect("failed to execute process");
-        return String::from_utf8(output.stdout).unwrap().trim().to_string();
+        return String::from_utf8(output.stdout).unwrap().trim_end().to_string();
     }
 
     fn count(args: &[&str]) -> usize {
@@ -112,13 +112,16 @@ impl Git {
             untracked: 0,
         };
         for line in Git::run_command(&["status", "--porcelain"]).split("\n") {
+            if line == "" {
+                continue;
+            }
             if str::starts_with(line, "??") {
                 result.untracked += 1;
             } else {
-                if &line[0..0] != " " {
+                if &line[0..1] != " " {
                     result.staged += 1;
                 }
-                if &line[1..1] != " " {
+                if &line[1..2] != " " {
                     result.unstaged += 1;
                 }
             }
