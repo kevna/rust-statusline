@@ -8,15 +8,18 @@ struct AheadBehind {
 
 impl fmt::Display for AheadBehind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if (self.ahead - self.behind) != self.ahead {
-            return write!(f, "↕{}", self.ahead+self.behind)
+        let ahead = self.ahead > 0;
+        let behind = self.behind > 0;
+        if ahead && behind {
+            return write!(f, "↕{}", self.ahead+self.behind);
         }
-        if self.ahead > 0 {
+        if ahead {
             return write!(f, "↑{}", self.ahead);
         }
-        if self.behind > 0 {
+        if behind {
             return write!(f, "↓{}", self.behind);
         }
+
         return write!(f, "");
     }
 }
@@ -31,41 +34,24 @@ impl Status {
     fn has_changes(&self) -> bool {
         return self.unstaged > 0 || self.untracked > 0 || self.staged >0
     }
-
-    // fn to_string(&self) -> String {
-    //     let mut result = "".to_owned();
-    //     if self.staged > 0 {
-    //         result += &format!("\x1b[32m{}", self.staged)
-    //     }
-    //     if self.unstaged > 0 {
-    //         result += &format!("\x1b[31m{}", self.unstaged)
-    //     }
-    //     if self.untracked > 0 {
-    //         result += &format!("\x1b[90m{}", self.untracked)
-    //     }
-    //     if result.len() > 0 {
-    //         result += "\x1b[m"
-    //     }
-    //     return result
-    // }
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut result = "".to_owned();
+        if !self.has_changes() {
+            return write!(f, "");
+        }
+
         if self.staged > 0 {
-            result += &format!("\x1b[32m{}", self.staged)
+            write!(f, "\x1b[32m{}", self.staged)?;
         }
         if self.unstaged > 0 {
-            result += &format!("\x1b[31m{}", self.unstaged)
+            write!(f, "\x1b[31m{}", self.unstaged)?;
         }
         if self.untracked > 0 {
-            result += &format!("\x1b[90m{}", self.untracked)
+            write!(f, "\x1b[90m{}", self.untracked)?;
         }
-        if result.len() > 0 {
-            result += "\x1b[m"
-        }
-        return write!(f, "{}", result);
+        return write!(f, "\x1b[m");
     }
 }
 
