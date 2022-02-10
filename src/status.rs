@@ -27,7 +27,7 @@ fn minify_path(path: &str, keep: usize) -> String {
             result.push(name.to_string());
         }
     }
-    return result.join("/");
+    return "\x1b[94m".to_owned() + &result.join("/") + "\x1b[m";
 }
 
 pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
@@ -60,10 +60,10 @@ mod tests {
     }
 
     #[rstest]
-    #[case("~", 1, "~")]
-    #[case("/etc/X11/xorg.conf.d", 1, "/e/X/xorg.conf.d")]
-    #[case("~/.local/share/chezmoi/private_dot_config/i3", 1, "~/.l/s/c/p/i3")]
-    #[case("~/.local/share/chezmoi/private_dot_config/i3", 2, "~/.l/s/c/private_dot_config/i3")]
+    #[case("~", 1, "\x1b[94m~\x1b[m")]
+    #[case("/etc/X11/xorg.conf.d", 1, "\x1b[94m/e/X/xorg.conf.d\x1b[m")]
+    #[case("~/.local/share/chezmoi/private_dot_config/i3", 1, "\x1b[94m~/.l/s/c/p/i3\x1b[m")]
+    #[case("~/.local/share/chezmoi/private_dot_config/i3", 2, "\x1b[94m~/.l/s/c/private_dot_config/i3\x1b[m")]
     fn test_minify_path(#[case] input: &str, #[case] keep: usize, #[case] expected: &str) {
         let actual = minify_path(input, keep);
         assert_eq!(expected, actual)
@@ -95,29 +95,29 @@ mod tests {
         "branch",
         "\u{E0A0}master",
         "~/.local/share/chezmoi/private_dot_config/i3",
-        "~/.l/s/chezmoi\u{E0A0}master/p/i3",
+        "\x1b[94m~/.l/s/chezmoi\x1b[m\u{E0A0}master\x1b[94m/p/i3\x1b[m",
     )]
     #[case(
         "~/Documents/python/statusline/master",
         "branch",
         "\u{E0A0}",
         "~/Documents/python/statusline/master/statusline",
-        // "~/D/p/statusline/master\u{E0A0}/statusline",
-        "~/D/p/s/master\u{E0A0}/statusline",
+        // "\x1b[94m~/D/p/statusline/master\x1b[m\u{E0A0}\x1b[94m/statusline\x1b[m",
+        "\x1b[94m~/D/p/s/master\x1b[m\u{E0A0}\x1b[94m/statusline\x1b[m",
     )]
     #[case(
         "~/Documents/python/statusline-master",
         "branch",
         "\u{E0A0}",
         "~/Documents/python/statusline-master/statusline",
-        "~/D/p/statusline-master\u{E0A0}/statusline",
+        "\x1b[94m~/D/p/statusline-master\x1b[m\u{E0A0}\x1b[94m/statusline\x1b[m",
     )]
     #[case(
         "~/Documents/python/statusline/feature/newfeature",
         "feature/newfeature",
         "\u{E0A0}",
         "~/Documents/python/statusline/feature/newfeature/statusline",
-        "~/D/p/s/f/newfeature\u{E0A0}/statusline",
+        "\x1b[94m~/D/p/s/f/newfeature\x1b[m\u{E0A0}\x1b[94m/statusline\x1b[m",
     )]
     fn test_apply_vcs(#[case] root: &str, #[case] branch: &str, #[case] stat: &str, #[case] input: &str, #[case] expected: &str) {
         let mock = MockVCS{
