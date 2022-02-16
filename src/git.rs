@@ -92,35 +92,48 @@ impl Git {
         return output.len();
     }
 
-    fn ahead_behind() -> AheadBehind {
-        return AheadBehind{
-            ahead: Git::count(&["rev-list", "@{push}..HEAD"]),
-            behind: Git::count(&["rev-list", "HEAD..@{upstream}"]),
+    fn ahead_behind(&self) -> Option<AheadBehind> {
+        let head = self.repo.head().unwrap();
+        let remote = self.repo.branch_upstream_name(
+            head.name().unwrap()
+        );
+        match remote {
+            Ok(remote) => {
+                let (ahead, behind) = self.repo.graph_ahead_behind(
+                    head.resolve().unwrap().target().unwrap(),
+                    self.repo.refname_to_id(remote.as_str().unwrap()).unwrap(),
+                ).unwrap();
+                return Some(AheadBehind{ahead: ahead, behind: behind});
+            }
+            Err(_) => {
+                return None;
+            }
         }
     }
 
-    fn status() -> Status {
+    fn status(&self) -> Status {
         let mut result = Status{
             staged: 0,
             unstaged: 0,
             untracked: 0,
         };
-        for line in Git::run_command(&["status", "--porcelain"]).split("\n") {
-            if line == "" {
+        for stat in self.repo.statuses(None).unwrap().iter() {
+            let flag = stat.status();
+            if flag.is_ignored() {
                 continue;
             }
-            if str::starts_with(line, "??") {
+            if flag.is_wt_new() {
                 result.untracked += 1;
-            } else {
-                if &line[0..1] != " " {
-                    result.staged += 1;
-                }
-                if &line[1..2] != " " {
-                    result.unstaged += 1;
-                }
+                continue;
+            }
+            if !(flag & (git2::Status::INDEX_NEW | git2::Status::INDEX_MODIFIED | git2::Status::INDEX_DELETED | git2::Status::INDEX_RENAMED)).is_empty() {
+                result.staged += 1;
+            }
+            if !(flag & (git2::Status::WT_MODIFIED | git2::Status::WT_DELETED | git2::Status::WT_RENAMED)).is_empty() {
+                result.unstaged += 1;
             }
         }
-        return result
+        return result;
     }
 
     fn stashes() -> usize {
@@ -134,7 +147,7 @@ impl VCS for Git {
     }
 
     fn branch(&self) -> String {
-        return Git::run_command(&["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]);
+        return self.repo.head().unwrap().shorthand().unwrap().to_owned();
     }
 
     fn stat(&self) -> String {
@@ -143,9 +156,10 @@ impl VCS for Git {
         if !str::ends_with(&self.root_dir(), branch) {
             result += branch;
         }
-        let ab = Git::ahead_behind();
-        result += &format!("{ab}");
-        let status = Git::status();
+        if let Some(ab) = self.ahead_behind() {
+            result += &format!("{ab}");
+        }
+        let status = self.status();
         if status.has_changes() {
             result += &format!("({status})");
         }
