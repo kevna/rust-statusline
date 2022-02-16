@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 regex = "*"
+git2 = "*"
 
 [dev-dependencies]
 rstest = "*"
