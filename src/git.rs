@@ -1,5 +1,6 @@
 use std::process::Command;
 use std::fmt;
+use git2::Repository;
 
 struct AheadBehind {
     ahead: usize,
@@ -61,11 +62,18 @@ pub trait VCS {
 	fn stat(&self) -> String;
 }
 
-pub struct Git;
+pub struct Git {
+    repo: Repository,
+}
 
 const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
 
 impl Git {
+    pub fn new() -> Git {
+        let r = Repository::open(".").unwrap();
+        return Git{repo: r};
+    }
+
     fn run_command(args: &[&str]) -> String {
         // let args = ["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"];
         let output = Command::new("git")

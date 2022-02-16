@@ -2,6 +2,7 @@
 
 use std::env;
 use regex::Regex;
+use git::Git;
 
 fn minify_dir(name: &str) -> String {
     let regexp = Regex::new(r"(\W*\w)").unwrap();
@@ -39,7 +40,7 @@ pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
 
 pub fn statusline() -> String {
     if let Some(path) = env::current_dir().unwrap().to_str() {
-        return apply_vcs(&path, &git::Git{});
+        return apply_vcs(&path, &Git::new());
     }
     return "".to_owned();
 }
