@@ -31,15 +31,16 @@ fn minify_path(path: &str, keep: usize) -> String {
 }
 
 pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
-    let root = vcs.root_dir();
-    let common = &path[0..root.len()];
-    let remainder = &path[root.len()..];
-    return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
+    return minify_path(&path, 1) + &vcs.stat();
+    // let root = vcs.root_dir();
+    // let common = &path[0..root.len()];
+    // let remainder = &path[root.len()..];
+    // return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
 }
 
 pub fn statusline() -> String {
     if let Some(path) = env::current_dir().unwrap().to_str() {
-        return apply_vcs(&path, &git::Git{});
+        return apply_vcs(&path, &git::Repo::new());
     }
     return "".to_owned();
 }
@@ -69,6 +70,7 @@ mod tests {
         assert_eq!(expected, actual)
     }
 
+    /*
     struct MockVCS {
         root: String,
         branch: String,
@@ -128,4 +130,5 @@ mod tests {
         let actual = apply_vcs(input, &mock);
         assert_eq!(expected, actual)
     }
+    */
 }

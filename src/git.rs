@@ -56,18 +56,20 @@ impl fmt::Display for Status {
 }
 
 pub trait VCS {
-	fn root_dir(&self) -> String;
-	fn branch(&self) -> String;
 	fn stat(&self) -> String;
 }
 
-pub struct Git;
-
 const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
 
-impl Git {
+pub struct Repo {
+    branch: String,
+    ab: Option<AheadBehind>,
+    status: Status,
+    stashes: usize,
+}
+
+impl Repo {
     fn run_command(args: &[&str]) -> String {
-        // let args = ["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"];
         let output = Command::new("git")
             .args(args)
             .output()
@@ -75,75 +77,86 @@ impl Git {
         return String::from_utf8(output.stdout).unwrap().trim_end().to_string();
     }
 
-    fn count(args: &[&str]) -> usize {
-        let string = Git::run_command(args);
-        let mut output: Vec<&str> = string.split("\n").collect();
-        if output.last() == Some(&"") {
-            output.pop();
-        }
-        return output.len();
+    pub fn new() -> Repo {
+        Repo::run_command(&["status", "--porcelain=v2", "--branch", "--show-stash"]).parse().unwrap()
     }
+}
 
-    fn ahead_behind() -> AheadBehind {
-        return AheadBehind{
-            ahead: Git::count(&["rev-list", "@{push}..HEAD"]),
-            behind: Git::count(&["rev-list", "HEAD..@{upstream}"]),
-        }
-    }
+impl std::str::FromStr for Repo {
+    type Err = &'static str;
 
-    fn status() -> Status {
-        let mut result = Status{
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let mut branch = "".to_owned();
+        let mut ab = None;
+        let mut status = Status{
             staged: 0,
             unstaged: 0,
             untracked: 0,
         };
-        for line in Git::run_command(&["status", "--porcelain"]).split("\n") {
+        let mut stashes = 0;
+
+        for line in string.split("\n") {
             if line == "" {
                 continue;
             }
-            if str::starts_with(line, "??") {
-                result.untracked += 1;
-            } else {
-                if &line[0..1] != " " {
-                    result.staged += 1;
+            match &line[0..1] {
+                "#" => {
+                    let mut fields = line[2..].split(" ");
+                    match fields.next() {
+                        Some("branch.head") => {
+                            if let Some(value) = fields.next() {
+                                branch += value;
+                            }
+                        }
+                        Some("branch.ab") => {
+                            if let Some(ahead) = fields.next() {
+                                if let Some(behind) = fields.next() {
+                                    ab = Some(AheadBehind{
+                                        ahead: ahead.parse().unwrap(),
+                                        behind: behind[1..].parse().unwrap()
+                                    });
+                                }
+                            }
+                        }
+                        Some("stash") => {
+                            if let Some(value) = fields.next() {
+                                stashes = value.parse().unwrap();
+                            }
+                        }
+                        Some(&_) | None => {}
+                    }
                 }
-                if &line[1..2] != " " {
-                    result.unstaged += 1;
+                "1"|"2" => {
+                    if &line[2..3] != "." {
+                        status.staged += 1;
+                    }
+                    if &line[3..4] != "." {
+                        status.unstaged += 1;
+                    }
+                },
+                "?" => {
+                    status.untracked += 1;
                 }
+                _ => {}
             }
         }
-        return result
-    }
-
-    fn stashes() -> usize {
-        return Git::count(&["stash", "list"])
+        return Ok(Repo{branch, ab, status, stashes})
     }
 }
 
-impl VCS for Git {
-    fn root_dir(&self) -> String {
-        return Git::run_command(&["rev-parse", "--show-toplevel"]);
-    }
-
-    fn branch(&self) -> String {
-        return Git::run_command(&["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]);
-    }
-
+impl VCS for Repo {
     fn stat(&self) -> String {
         let mut result = ICON.to_owned();
-        let branch = &self.branch();
-        if !str::ends_with(&self.root_dir(), branch) {
-            result += branch;
+        result += &self.branch;
+        result += &match &self.ab {
+            Some(ab) => format!("{}", ab),
+            None => "\x1b[91;1m↯\x1b[m".to_owned(),
+        };
+        if self.status.has_changes() {
+            result += &format!("({})", &self.status);
         }
-        let ab = Git::ahead_behind();
-        result += &format!("{ab}");
-        let status = Git::status();
-        if status.has_changes() {
-            result += &format!("({status})");
-        }
-        let stashes = Git::stashes();
-        if stashes > 0 {
-            result += &format!("{{{stashes}}}");
+        if &self.stashes > &0 {
+            result += &format!("{{{}}}", &self.stashes);
         }
         return result;
     }
