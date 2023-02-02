@@ -1,6 +1,8 @@
 use std::process::Command;
 use std::fmt;
 
+const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
+
 struct AheadBehind {
     ahead: usize,
     behind: usize,
@@ -10,29 +12,38 @@ impl fmt::Display for AheadBehind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ahead = self.ahead > 0;
         let behind = self.behind > 0;
-        if ahead && behind {
-            return write!(f, "↕{}", self.ahead+self.behind);
+        if !(ahead || behind) {
+            return write!(f, "");
         }
         if ahead {
-            return write!(f, "↑{}", self.ahead);
+            write!(f, "\x1b[32m↑{}", self.ahead)?;
         }
         if behind {
-            return write!(f, "↓{}", self.behind);
+            write!(f, "\x1b[31m↓{}", self.behind)?;
         }
 
-        return write!(f, "");
+        return write!(f, "\x1b[m");
     }
 }
 
 struct Status {
+    unmerged: usize,
     staged: usize,
     unstaged: usize,
     untracked: usize,
 }
 
 impl Status {
+    fn zero() -> Status {
+        return Status{
+            unmerged: 0,
+            staged: 0,
+            unstaged: 0,
+            untracked: 0,
+        };
+    }
     fn has_changes(&self) -> bool {
-        return self.unstaged > 0 || self.untracked > 0 || self.staged >0
+        self.unstaged > 0 || self.untracked > 0 || self.staged > 0 || self.unmerged > 0
     }
 }
 
@@ -42,6 +53,9 @@ impl fmt::Display for Status {
             return write!(f, "");
         }
 
+        if self.unmerged > 0 {
+            write!(f, "\x1b[91;1m{}", self.unmerged)?;
+        }
         if self.staged > 0 {
             write!(f, "\x1b[32m{}", self.staged)?;
         }
@@ -58,8 +72,6 @@ impl fmt::Display for Status {
 pub trait VCS {
 	fn stat(&self) -> String;
 }
-
-const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
 
 pub struct Repo {
     branch: String,
@@ -88,11 +100,7 @@ impl std::str::FromStr for Repo {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let mut branch = "".to_owned();
         let mut ab = None;
-        let mut status = Status{
-            staged: 0,
-            unstaged: 0,
-            untracked: 0,
-        };
+        let mut status = Status::zero();
         let mut stashes = 0;
 
         for line in string.split("\n") {
@@ -125,6 +133,9 @@ impl std::str::FromStr for Repo {
                         }
                         Some(&_) | None => {}
                     }
+                }
+                "u" => {
+                    status.unmerged += 1
                 }
                 "1"|"2" => {
                     if &line[2..3] != "." {
