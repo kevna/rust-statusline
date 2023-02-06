@@ -72,6 +72,7 @@ impl fmt::Display for Status {
 }
 
 pub trait VCS {
+	fn root_dir(&self) -> String;
 	fn stat(&self) -> String;
 }
 
@@ -159,6 +160,10 @@ impl std::str::FromStr for Repo {
 }
 
 impl VCS for Repo {
+    fn root_dir(&self) -> String {
+        Repo::run_command(&["rev-parse", "--show-toplevel"])
+    }
+
     fn stat(&self) -> String {
         let mut result = ICON.to_owned();
         result += &self.branch;

@@ -31,11 +31,10 @@ fn minify_path(path: &str, keep: usize) -> String {
 }
 
 pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
-    return minify_path(&path, 1) + &vcs.stat();
-    // let root = vcs.root_dir();
-    // let common = &path[0..root.len()];
-    // let remainder = &path[root.len()..];
-    // return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
+    let root = vcs.root_dir();
+    let common = &path[0..root.len()];
+    let remainder = &path[root.len()..];
+    return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
 }
 
 pub fn statusline() -> String {
@@ -70,10 +69,9 @@ mod tests {
         assert_eq!(expected, actual)
     }
 
-    /*
     struct MockVCS {
         root: String,
-        branch: String,
+        // branch: String,
         stat: String,
     }
 
@@ -82,9 +80,9 @@ mod tests {
             return self.root.to_owned();
         }
 
-        fn branch(&self) -> String {
-            return self.branch.to_owned();
-        }
+        // fn branch(&self) -> String {
+        //     return self.branch.to_owned();
+        // }
 
         fn stat(&self) -> String {
             return self.stat.to_owned();
@@ -124,11 +122,10 @@ mod tests {
     fn test_apply_vcs(#[case] root: &str, #[case] branch: &str, #[case] stat: &str, #[case] input: &str, #[case] expected: &str) {
         let mock = MockVCS{
             root: root.to_owned(),
-            branch: branch.to_owned(),
+            // branch: branch.to_owned(),
             stat: stat.to_owned(),
         };
         let actual = apply_vcs(input, &mock);
         assert_eq!(expected, actual)
     }
-    */
 }
