@@ -1,5 +1,8 @@
-use std::process::Command;
-use std::fmt;
+use std::{
+    fmt,
+    process::Command,
+    error::Error,
+};
 
 const ICON: &str = "\x1b[38;5;202m\u{E0A0}\x1b[m";
 
@@ -98,7 +101,7 @@ impl Repo {
 }
 
 impl std::str::FromStr for Repo {
-    type Err = &'static str;
+    type Err = Box<dyn Error>;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let mut branch = "".to_owned();
@@ -123,18 +126,18 @@ impl std::str::FromStr for Repo {
                             if let Some(ahead) = fields.next() {
                                 if let Some(behind) = fields.next() {
                                     ab = Some(AheadBehind{
-                                        ahead: ahead.parse().unwrap(),
-                                        behind: behind[1..].parse().unwrap()
+                                        ahead: ahead.parse()?,
+                                        behind: behind[1..].parse()?,
                                     });
                                 }
                             }
                         }
                         Some("stash") => {
                             if let Some(value) = fields.next() {
-                                stashes = value.parse().unwrap();
+                                stashes = value.parse()?
                             }
                         }
-                        Some(&_) | None => {}
+                        _ => {}
                     }
                 }
                 "u" => {
