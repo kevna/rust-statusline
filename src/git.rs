@@ -87,16 +87,19 @@ pub struct Repo {
 }
 
 impl Repo {
-    fn run_command(args: &[&str]) -> String {
+    fn run_command(args: &[&str]) -> Option<String> {
         let output = Command::new("git")
             .args(args)
             .output()
-            .expect("failed to execute process");
-        return String::from_utf8(output.stdout).unwrap().trim_end().to_string();
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        Some(String::from_utf8(output.stdout).ok()?.trim_end().to_string())
     }
 
-    pub fn new() -> Repo {
-        Repo::run_command(&["status", "--porcelain=v2", "--branch", "--show-stash"]).parse().unwrap()
+    pub fn new() -> Option<Repo> {
+        Repo::run_command(&["status", "--porcelain=v2", "--branch", "--show-stash"])?.parse().ok()
     }
 }
 
@@ -180,7 +183,7 @@ impl fmt::Display for Repo {
 
 impl VCS for Repo {
     fn root_dir(&self) -> String {
-        Repo::run_command(&["rev-parse", "--show-toplevel"])
+        Repo::run_command(&["rev-parse", "--show-toplevel"]).unwrap()
     }
 }
 

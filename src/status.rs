@@ -39,7 +39,10 @@ pub fn apply_vcs(path: &str, vcs: impl git::VCS) -> String {
 
 pub fn statusline() -> String {
     if let Some(path) = env::current_dir().unwrap().to_str() {
-        return apply_vcs(&path, git::Repo::new());
+        return match git::Repo::new() {
+            Some(repo) => apply_vcs(&path, repo),
+            None => minify_path(&path, 1),
+        }
     }
     return "".to_owned();
 }
