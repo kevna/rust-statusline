@@ -14,7 +14,7 @@ impl fmt::Display for AheadBehind {
         let ahead = self.ahead > 0;
         let behind = self.behind > 0;
         if !(ahead || behind) {
-            return write!(f, "");
+            return Ok(())
         }
         if ahead {
             write!(f, "\x1b[32m↑{}", self.ahead)?;
@@ -52,7 +52,7 @@ impl Status {
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.has_changes() {
-            return write!(f, "");
+            return Ok(())
         }
 
         if self.unmerged > 0 {
@@ -71,9 +71,8 @@ impl fmt::Display for Status {
     }
 }
 
-pub trait VCS {
+pub trait VCS: fmt::Display {
 	fn root_dir(&self) -> String;
-	fn stat(&self) -> String;
 }
 
 #[derive(Debug, PartialEq)]
@@ -159,25 +158,26 @@ impl std::str::FromStr for Repo {
     }
 }
 
+impl fmt::Display for Repo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", ICON, &self.branch)?;
+        match &self.ab {
+            Some(ab) => write!(f, "{}", ab),
+            None => write!(f, "\x1b[91;1m↯\x1b[m"),
+        }?;
+        if self.status.has_changes() {
+            write!(f, "({})", &self.status)?;
+        }
+        if &self.stashes > &0 {
+            write!(f, "{{{}}}", &self.stashes)?;
+        }
+        return Ok(())
+    }
+}
+
 impl VCS for Repo {
     fn root_dir(&self) -> String {
         Repo::run_command(&["rev-parse", "--show-toplevel"])
-    }
-
-    fn stat(&self) -> String {
-        let mut result = ICON.to_owned();
-        result += &self.branch;
-        result += &match &self.ab {
-            Some(ab) => format!("{}", ab),
-            None => "\x1b[91;1m↯\x1b[m".to_owned(),
-        };
-        if self.status.has_changes() {
-            result += &format!("({})", &self.status);
-        }
-        if &self.stashes > &0 {
-            result += &format!("{{{}}}", &self.stashes);
-        }
-        return result;
     }
 }
 
@@ -311,8 +311,8 @@ u UU N... 100644 100644 100644 100644 ac51efdc3df4f4fd328d1a02ad05331d8e2c9111 3
         },
         ICON.to_owned() + "master\x1b[32m↑1\x1b[31m↓10\x1b[m(\x1b[91;1m1\x1b[32m1\x1b[31m4\x1b[90m5\x1b[m){3}",
     )]
-    fn test_repo_stat(#[case] repo: Repo, #[case] expected: String) {
-        let actual = repo.stat();
+    fn test_repo_fmt(#[case] repo: Repo, #[case] expected: String) {
+        let actual = format!("{}", repo);
         assert_eq!(expected, actual);
     }
 }

@@ -30,16 +30,16 @@ fn minify_path(path: &str, keep: usize) -> String {
     return "\x1b[94m".to_owned() + &result.join("/") + "\x1b[m";
 }
 
-pub fn apply_vcs(path: &str, vcs: &dyn git::VCS) -> String {
+pub fn apply_vcs(path: &str, vcs: impl git::VCS) -> String {
     let root = vcs.root_dir();
     let common = &path[0..root.len()];
     let remainder = &path[root.len()..];
-    return minify_path(&common, 1) + &vcs.stat() + &minify_path(&remainder, 1);
+    return format!("{}{}{}", minify_path(&common, 1), vcs, minify_path(&remainder, 1))
 }
 
 pub fn statusline() -> String {
     if let Some(path) = env::current_dir().unwrap().to_str() {
-        return apply_vcs(&path, &git::Repo::new());
+        return apply_vcs(&path, git::Repo::new());
     }
     return "".to_owned();
 }
@@ -48,6 +48,7 @@ pub fn statusline() -> String {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use std::fmt;
 
     #[rstest]
     #[case("~", "~")]
@@ -75,6 +76,12 @@ mod tests {
         stat: String,
     }
 
+    impl fmt::Display for MockVCS {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.stat)
+        }
+    }
+
     impl git::VCS for MockVCS {
         fn root_dir(&self) -> String {
             return self.root.to_owned();
@@ -83,10 +90,6 @@ mod tests {
         // fn branch(&self) -> String {
         //     return self.branch.to_owned();
         // }
-
-        fn stat(&self) -> String {
-            return self.stat.to_owned();
-        }
     }
 
     #[rstest]
@@ -125,7 +128,7 @@ mod tests {
             // branch: branch.to_owned(),
             stat: stat.to_owned(),
         };
-        let actual = apply_vcs(input, &mock);
+        let actual = apply_vcs(input, mock);
         assert_eq!(expected, actual)
     }
 }
