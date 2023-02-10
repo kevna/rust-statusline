@@ -31,7 +31,7 @@ fn minify_path(path: &str, keep: usize) -> String {
 }
 
 pub fn apply_vcs(path: &str, vcs: impl git::VCS) -> String {
-    let root = vcs.root_dir();
+    let root = vcs.root_dir(path);
     let common = &path[0..root.len()];
     let remainder = &path[root.len()..];
     return format!("{}{}{}", minify_path(&common, 1), vcs, minify_path(&remainder, 1))
@@ -86,7 +86,7 @@ mod tests {
     }
 
     impl git::VCS for MockVCS {
-        fn root_dir(&self) -> String {
+        fn root_dir(&self, _path: &str) -> String {
             return self.root.to_owned();
         }
 

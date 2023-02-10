@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    fs,
     process::Command,
     error::Error,
 };
@@ -75,7 +76,7 @@ impl fmt::Display for Status {
 }
 
 pub trait VCS: fmt::Display {
-	fn root_dir(&self) -> String;
+	fn root_dir(&self, path: &str) -> String;
 }
 
 #[derive(Debug, PartialEq)]
@@ -182,8 +183,18 @@ impl fmt::Display for Repo {
 }
 
 impl VCS for Repo {
-    fn root_dir(&self) -> String {
-        Repo::run_command(&["rev-parse", "--show-toplevel"]).unwrap()
+    fn root_dir(&self, path: &str) -> String {
+        let mut dirs: Vec<&str> = path.split("/").collect();
+        loop {
+            let path = dirs.join("/") + "/.git";
+            if fs::metadata(&path).is_ok() {
+                return path[..path.len()-5].to_owned();
+            }
+            dirs.pop();
+            if dirs.len() <= 2 {
+                return "".to_owned();
+            }
+        }
     }
 }
 
